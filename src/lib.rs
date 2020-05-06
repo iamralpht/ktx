@@ -25,9 +25,13 @@
 #![allow(clippy::cast_lossless)]
 
 pub mod header;
+
 #[cfg(feature = "std")]
 pub mod read;
+
 pub mod slice;
+
+pub mod write;
 
 pub use header::KtxInfo;
 #[cfg(feature = "std")]

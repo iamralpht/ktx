@@ -170,3 +170,92 @@ fn logo_example_debug() {
         "Ktx { header: KtxHeader { big_endian: false, gl_type: 0, gl_type_size: 1, gl_format: 0, gl_internal_format: 33779, gl_base_internal_format: 6408, pixel_width: 260, pixel_height: 200, pixel_depth: 0, array_elements: 0, faces: 1, mipmap_levels: 8, bytes_of_key_value_data: 0 } }"
     );
 }
+
+#[test]
+fn papermill_cubemap_header() -> io::Result<()> {
+    let ktx = include_ktx!("papermill.ktx");
+
+    assert!(!ktx.big_endian(), "!big_endian");
+    assert_eq!(ktx.gl_type(), 5131, "gl_type");
+    assert_eq!(ktx.gl_type_size(), 2, "gl_type_size");
+    assert_eq!(ktx.gl_format(), 6408, "gl_format");
+    assert_eq!(ktx.gl_internal_format(), 34842, "gl_internal_format");
+    assert_eq!(
+        ktx.gl_base_internal_format(),
+        6408,
+        "gl_base_internal_format"
+    );
+    assert_eq!(ktx.pixel_width(), 512, "pixel_width");
+    assert_eq!(ktx.pixel_height(), 512, "pixel_height");
+    assert_eq!(ktx.pixel_depth(), 0, "pixel_depth");
+    assert_eq!(ktx.array_elements(), 0, "array_elements");
+    assert_eq!(ktx.faces(), 6, "faces");
+    assert_eq!(ktx.mipmap_levels(), 10, "mipmap_levels");
+    assert_eq!(ktx.bytes_of_key_value_data(), 0, "bytes_of_key_value_data");
+
+    Ok(())
+}
+
+#[test]
+fn papermill_cubemap_textures() -> io::Result<()> {
+    let ktx = include_ktx!("papermill.ktx");
+
+    let _ = ktx.texture_level(9);
+    let textures = ktx.textures().collect::<Vec<_>>();
+    assert_eq!(textures.len(), 10);
+
+    for texture in &textures {
+        match texture {
+            crate::slice::Texture::Cubemap { .. } => {}
+            _ => panic!("Test should be a cubemap with 10 mip levels!"),
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn logo_roundtrip() {
+    use crate::{header::KtxHeader, write::KtxBuilder};
+    let ktx = include_ktx!("babg-bc3.ktx");
+
+    let mut builder = KtxBuilder::new(ktx.as_ref().clone());
+    ktx.textures()
+        .for_each(|tex| builder.add_level(tex.to_vec()));
+
+    let buffer = builder.to_vec().unwrap();
+    let read = Ktx::new(buffer.as_slice());
+
+    let orig_header: &KtxHeader = ktx.as_ref();
+    let read_header: &KtxHeader = read.as_ref();
+    assert_eq!(orig_header, read_header);
+
+    ktx.textures()
+        .zip(read.textures())
+        .for_each(|(left, right)| {
+            assert_eq!(left, right);
+        });
+}
+
+#[test]
+fn papermill_roundtrip() {
+    use crate::{header::KtxHeader, write::KtxBuilder};
+    let ktx = include_ktx!("papermill.ktx");
+
+    let mut builder = KtxBuilder::new(ktx.as_ref().clone());
+    ktx.textures()
+        .for_each(|tex| builder.add_level(tex.to_vec()));
+
+    let buffer = builder.to_vec().unwrap();
+    let read = Ktx::new(buffer.as_slice());
+
+    let orig_header: &KtxHeader = ktx.as_ref();
+    let read_header: &KtxHeader = read.as_ref();
+    assert_eq!(orig_header, read_header);
+
+    ktx.textures()
+        .zip(read.textures())
+        .for_each(|(left, right)| {
+            assert_eq!(left, right);
+        });
+}
