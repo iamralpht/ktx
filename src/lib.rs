@@ -37,3 +37,6 @@ pub use header::KtxInfo;
 #[cfg(feature = "std")]
 pub use read::KtxDecoder as Decoder;
 pub use slice::Ktx;
+
+pub mod texture;
+pub use texture::Texture;

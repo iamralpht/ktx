@@ -1,4 +1,5 @@
 use crate::header::*;
+use crate::Texture;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use std::{
     fmt,
@@ -17,7 +18,7 @@ use std::{
 /// let mut decoder = ktx::Decoder::new(buf_reader)?;
 ///
 /// assert_eq!(decoder.pixel_width(), 260);
-/// let texture_levels: Vec<Vec<u8>> = decoder.read_textures().collect();
+/// let texture_levels: Vec<Texture<Vec<u8>>> = decoder.read_textures().collect();
 /// # Ok(()) }
 /// ```
 #[derive(Clone, Copy)]
@@ -87,7 +88,7 @@ pub struct Textures<R> {
 }
 
 impl<R: io::Read> Iterator for Textures<R> {
-    type Item = Vec<u8>;
+    type Item = Texture<Vec<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_level >= self.header.mipmap_levels() {
@@ -114,20 +115,38 @@ impl<R: io::Read> Iterator for Textures<R> {
                 }
             };
 
-            let level_len = if self.header.array_elements() == 0 && self.header.faces() == 6 {
-                6 * level_len
-            } else {
-                level_len
+            let is_cube = self.header.array_elements() == 0 && self.header.faces() == 6;
+
+            let mut do_read = |len: u32| {
+                let mut level = Vec::with_capacity(len as _);
+                self.data
+                    .by_ref()
+                    .take(len as _)
+                    .read_to_end(&mut level)
+                    .ok()?;
+                Some(level)
             };
 
-            let mut level = Vec::with_capacity(level_len as _);
-            self.data
-                .by_ref()
-                .take(level_len as _)
-                .read_to_end(&mut level)
-                .ok()?;
-
-            Some(level)
+            if is_cube {
+                let x = do_read(level_len)?;
+                let x_neg = do_read(level_len)?;
+                let y = do_read(level_len)?;
+                let y_neg = do_read(level_len)?;
+                let z = do_read(level_len)?;
+                let z_neg = do_read(level_len)?;
+                Some(Texture::Cubemap {
+                    all: vec![], // Oops!
+                    x,
+                    x_neg,
+                    y,
+                    y_neg,
+                    z,
+                    z_neg,
+                })
+            } else {
+                let level = do_read(level_len)?;
+                Some(Texture::TwoDim(level))
+            }
         }
     }
 }

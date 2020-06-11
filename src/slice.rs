@@ -1,4 +1,5 @@
 use crate::header::*;
+use crate::texture::Texture;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use core::{fmt, ops::Deref};
 
@@ -57,7 +58,7 @@ where
     ///
     /// Input level is >= the `mipmap_levels` value.
     #[inline]
-    pub fn texture_level(&self, level: u32) -> Texture<'_> {
+    pub fn texture_level(&self, level: u32) -> Texture<&'_ [u8]> {
         self.textures().nth(level as _).expect("invalid level")
     }
 
@@ -82,31 +83,6 @@ where
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Texture<'a> {
-    TwoDim(&'a [u8]),
-    Cubemap {
-        all: &'a [u8],
-        x: &'a [u8],
-        x_neg: &'a [u8],
-        y: &'a [u8],
-        y_neg: &'a [u8],
-        z: &'a [u8],
-        z_neg: &'a [u8],
-    },
-}
-
-impl<'a> std::ops::Deref for Texture<'a> {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        match *self {
-            Self::TwoDim(slice) => slice,
-            Self::Cubemap { all, .. } => all,
-        }
-    }
-}
-
 /// Iterator over texture level data.
 #[derive(Debug)]
 pub struct Textures<'a, D> {
@@ -119,7 +95,7 @@ impl<'a, D> Iterator for Textures<'a, D>
 where
     D: Deref<Target = [u8]>,
 {
-    type Item = Texture<'a>;
+    type Item = Texture<&'a [u8]>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_level >= self.parent.mipmap_levels() {

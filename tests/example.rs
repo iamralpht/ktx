@@ -206,10 +206,26 @@ fn papermill_cubemap_textures() -> io::Result<()> {
 
     for texture in &textures {
         match texture {
-            crate::slice::Texture::Cubemap { .. } => {}
+            crate::Texture::Cubemap { .. } => {}
             _ => panic!("Test should be a cubemap with 10 mip levels!"),
         }
     }
+
+    Ok(())
+}
+
+#[test]
+fn papermill_cubemap_reader() -> io::Result<()> {
+    let ktx = ktx::Decoder::new(io::BufReader::new(fs::File::open("tests/papermill.ktx")?))?;
+    let mut count = 0;
+    for texture in ktx.read_textures() {
+        count += 1;
+        match texture {
+            crate::Texture::Cubemap { .. } => {}
+            _ => panic!("Test should be a cubemap with 10 mip levels"),
+        }
+    }
+    assert_eq!(count, 10);
 
     Ok(())
 }
